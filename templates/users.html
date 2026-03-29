@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Users - RIA CRM{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0">Team Members</h4>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addUserModal"><i class="bi bi-plus-lg"></i> Add User</button>
+</div>
+
+{% if users %}
+<div class="card">
+    <table class="table table-hover mb-0">
+        <thead><tr><th>Name</th><th>Role</th><th>Email</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+        {% for u in users %}
+        <tr>
+            <td><strong>{{ u.full_name }}</strong></td>
+            <td><span class="badge bg-secondary">{{ u.role }}</span></td>
+            <td>{{ u.email or '—' }}</td>
+            <td>
+                {% if u.is_active %}
+                <span class="badge bg-success">Active</span>
+                {% else %}
+                <span class="badge bg-secondary">Inactive</span>
+                {% endif %}
+            </td>
+            <td>
+                <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#editUser{{ u.id }}"><i class="bi bi-pencil"></i></button>
+                <form method="POST" action="{{ url_for('user_delete', id=u.id) }}" class="d-inline" onsubmit="return confirm('Remove {{ u.full_name }}?')">
+                    <button class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button>
+                </form>
+            </td>
+        </tr>
+        <!-- Edit User Modal -->
+        <div class="modal fade" id="editUser{{ u.id }}" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+            <form method="POST" action="{{ url_for('user_edit', id=u.id) }}">
+            <div class="modal-header"><h6 class="modal-title">Edit User</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="row g-2 mb-2">
+                    <div class="col"><input type="text" name="first_name" class="form-control" value="{{ u.first_name }}" placeholder="First Name" required></div>
+                    <div class="col"><input type="text" name="last_name" class="form-control" value="{{ u.last_name }}" placeholder="Last Name" required></div>
+                </div>
+                <div class="mb-2"><input type="email" name="email" class="form-control" value="{{ u.email }}" placeholder="Email"></div>
+                <div class="mb-2">
+                    <select name="role" class="form-select">
+                        {% for r in roles %}<option value="{{ r }}" {% if u.role == r %}selected{% endif %}>{{ r }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="form-check mb-2">
+                    <input type="checkbox" name="is_active" id="activeCheck{{ u.id }}" class="form-check-input" {% if u.is_active %}checked{% endif %}>
+                    <label class="form-check-label" for="activeCheck{{ u.id }}">Active</label>
+                </div>
+            </div>
+            <div class="modal-footer"><button type="submit" class="btn btn-primary btn-sm">Save</button></div>
+            </form>
+        </div></div></div>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card p-4 text-center text-muted">No team members yet. Add your first user.</div>
+{% endif %}
+
+<!-- Add User Modal -->
+<div class="modal fade" id="addUserModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+    <form method="POST" action="{{ url_for('user_new') }}">
+    <div class="modal-header"><h6 class="modal-title">Add Team Member</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+        <div class="row g-2 mb-2">
+            <div class="col"><input type="text" name="first_name" class="form-control" placeholder="First Name" required></div>
+            <div class="col"><input type="text" name="last_name" class="form-control" placeholder="Last Name" required></div>
+        </div>
+        <div class="mb-2"><input type="email" name="email" class="form-control" placeholder="Email"></div>
+        <div class="mb-2">
+            <select name="role" class="form-select">
+                {% for r in roles %}<option value="{{ r }}">{{ r }}</option>{% endfor %}
+            </select>
+        </div>
+    </div>
+    <div class="modal-footer"><button type="submit" class="btn btn-primary btn-sm">Add</button></div>
+    </form>
+</div></div></div>
+{% endblock %}

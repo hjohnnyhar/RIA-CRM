@@ -8,26 +8,52 @@
     .fc .fc-button-primary.fc-button-active { background: #38bdf8; border-color: #38bdf8; }
     .fc .fc-toolbar-title { font-size: 1.2rem; font-weight: 600; }
     .fc .fc-event { cursor: pointer; padding: 2px 4px; font-size: 0.8rem; }
-    .fc .fc-daygrid-day-number { font-size: 0.85rem; }
-    .fc .fc-highlight { background: rgba(56,189,248,0.2) !important; }
+    .fc .fc-daygrid-day-number { font-size: 0.85rem; cursor: pointer; }
+    .fc .fc-daygrid-day-number:hover { color: #38bdf8; }
+    .fc .fc-highlight { background: rgba(56,189,248,0.25) !important; }
+    .fc .fc-timegrid-slot { cursor: pointer; }
     .meeting-list-section { margin-top: 2rem; }
-    .select-hint { display: none; padding: 0.5rem 0.75rem; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 0.375rem; font-size: 0.82rem; color: #0369a1; margin-bottom: 1rem; }
-    .select-hint.visible { display: block; }
+    #modalTimeLabel { font-size: 0.8rem; color: #38bdf8; font-weight: 500; margin-top: 2px; }
+    .task-count-badge {
+        display: inline-flex; align-items: center; gap: 3px;
+        font-size: 0.68rem; color: #16a34a; background: #f0fdf4;
+        border: 1px solid #bbf7d0; border-radius: 0.25rem;
+        padding: 1px 5px; margin-left: 4px; white-space: nowrap; vertical-align: middle;
+    }
+    #dayTaskList { background: #fff; border-radius: 0.5rem; padding: 1.25rem 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-top: 1rem; }
+    .task-item { display: flex; align-items: center; gap: 0.6rem; padding: 0.55rem 0; border-bottom: 1px solid #f1f5f9; font-size: 0.88rem; }
+    .task-item:last-child { border-bottom: none; }
+    .task-item .task-title { flex: 1; }
 </style>
 {% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="mb-0">Calendar</h4>
-    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addMeetingModal" id="newMeetingBtn"><i class="bi bi-plus-lg"></i> New Meeting</button>
-</div>
-
-<div id="selectHint" class="select-hint">
-    <i class="bi bi-info-circle"></i> <strong>Tip:</strong> Click and drag on the <em>Week</em> or <em>Day</em> view to select a time slot, then click <strong>New Meeting</strong> to pre-fill the date and time.
+    <div class="d-flex align-items-center gap-3">
+        <h4 class="mb-0">Calendar</h4>
+        <div class="btn-group btn-group-sm" id="calToggle" role="group">
+            <button class="btn btn-primary active" id="toggleMeetings"><i class="bi bi-calendar-event"></i> Meetings</button>
+            <button class="btn btn-outline-secondary" id="toggleTasks"><i class="bi bi-check2-square"></i> Tasks</button>
+            <button class="btn btn-outline-secondary" id="toggleBoth">Both</button>
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-success btn-sm d-none" id="createTaskBtn"><i class="bi bi-check2-square"></i> Create Task</button>
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addMeetingModal" id="newMeetingBtn"><i class="bi bi-plus-lg"></i> New Meeting</button>
+    </div>
 </div>
 
 <div id="calendar"></div>
 
-<!-- Meeting detail popover on click -->
+<!-- Day view task list (shown below calendar in day view when tasks toggled) -->
+<div id="dayTaskList" class="d-none">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="mb-0"><i class="bi bi-check2-square text-success me-1"></i> Tasks</h6>
+        <span id="dayTaskDate" class="text-muted small"></span>
+    </div>
+    <div id="dayTaskItems"><p class="text-muted mb-0">No tasks due.</p></div>
+</div>
+
+<!-- Meeting detail modal -->
 <div class="modal fade" id="meetingDetailModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
     <div class="modal-header"><h6 class="modal-title" id="detailTitle"></h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body" id="detailBody"></div>
@@ -108,7 +134,13 @@
 <!-- Add Meeting Modal -->
 <div class="modal fade" id="addMeetingModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
     <form method="POST" action="{{ url_for('meeting_new') }}">
-    <div class="modal-header"><h6 class="modal-title">New Meeting</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-header">
+        <div>
+            <h6 class="modal-title mb-0">New Meeting</h6>
+            <div id="modalTimeLabel"></div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
     <div class="modal-body">
         <div class="mb-2"><input type="text" name="title" class="form-control" placeholder="Meeting Title" required></div>
         <div class="row g-2 mb-2">
@@ -138,6 +170,57 @@
     <div class="modal-footer"><button type="submit" class="btn btn-primary btn-sm">Schedule</button></div>
     </form>
 </div></div></div>
+
+<!-- Create Task Modal -->
+<div class="modal fade" id="addTaskModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+    <form method="POST" action="{{ url_for('task_new') }}">
+    <input type="hidden" name="referrer" value="calendar">
+    <div class="modal-header">
+        <div>
+            <h6 class="modal-title mb-0">New Task</h6>
+            <div id="taskModalDateLabel" style="font-size:0.8rem;color:#22c55e;font-weight:500;margin-top:2px;"></div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+        <div class="mb-2"><input type="text" name="title" class="form-control" placeholder="Task Title" required></div>
+        <div class="row g-2 mb-2">
+            <div class="col">
+                <label class="form-label small text-muted mb-1">Due Date</label>
+                <input type="date" name="due_date" id="taskDueDateInput" class="form-control">
+            </div>
+            <div class="col">
+                <label class="form-label small text-muted mb-1">Priority</label>
+                <select name="priority" class="form-select">
+                    {% for p in task_priorities %}<option value="{{ p }}" {% if p == 'Medium' %}selected{% endif %}>{{ p }}</option>{% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="mb-2">
+            <label class="form-label small text-muted mb-1">Household</label>
+            <select name="household_id" id="taskHouseholdSelect" class="form-select">
+                <option value="">No Household</option>
+                {% for h in households %}<option value="{{ h.id }}">{{ h.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="mb-2">
+            <label class="form-label small text-muted mb-1">Assign To</label>
+            <select name="assigned_to" id="taskAssignedToSelect" class="form-select">
+                <option value="">Unassigned</option>
+                {% for u in users %}<option value="{{ u.full_name }}">{{ u.full_name }} ({{ u.role }})</option>{% endfor %}
+            </select>
+        </div>
+        <div class="mb-2">
+            <label class="form-label small text-muted mb-1">Status</label>
+            <select name="status" class="form-select">
+                {% for s in task_statuses %}<option value="{{ s }}" {% if s == 'Open' %}selected{% endif %}>{{ s }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="mb-2"><textarea name="description" class="form-control" rows="2" placeholder="Description / Notes"></textarea></div>
+    </div>
+    <div class="modal-footer"><button type="submit" class="btn btn-success btn-sm">Create Task</button></div>
+    </form>
+</div></div></div>
 {% endblock %}
 
 {% block extra_js %}
@@ -145,14 +228,146 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     var calendarEl = document.getElementById('calendar');
-    var selectedStart = null;
-    var selectedEnd = null;
 
-    // Helper: format Date to YYYY-MM-DD
+    // ── Toggle state ──────────────────────────────────────────────────────────
+    var showMeetings = true;
+    var showTasks = false;
+    var taskCache = null;   // cached task data from /api/tasks
+    var tasksByDate = {};   // { "YYYY-MM-DD": [{...}] }
+
+    document.getElementById('toggleMeetings').addEventListener('click', function() {
+        setToggle('meetings');
+    });
+    document.getElementById('toggleTasks').addEventListener('click', function() {
+        setToggle('tasks');
+    });
+    document.getElementById('toggleBoth').addEventListener('click', function() {
+        setToggle('both');
+    });
+
+    function setToggle(mode) {
+        showMeetings = mode === 'meetings' || mode === 'both';
+        showTasks    = mode === 'tasks'    || mode === 'both';
+        var btns = document.querySelectorAll('#calToggle .btn');
+        btns.forEach(function(b) {
+            b.classList.remove('btn-primary', 'btn-success', 'btn-secondary', 'active');
+            b.classList.add('btn-outline-secondary');
+        });
+        var activeBtn = document.getElementById(
+            mode === 'meetings' ? 'toggleMeetings' : mode === 'tasks' ? 'toggleTasks' : 'toggleBoth'
+        );
+        activeBtn.classList.remove('btn-outline-secondary');
+        activeBtn.classList.add(mode === 'tasks' ? 'btn-success' : 'btn-primary', 'active');
+        calendar.refetchEvents();
+        if (showTasks) loadTasks().then(renderTaskDisplay);
+        else { clearTaskBadges(); hideDayTaskList(); }
+    }
+
+    // ── Task data helpers ─────────────────────────────────────────────────────
+    function loadTasks() {
+        if (taskCache) return Promise.resolve(taskCache);
+        return fetch('/api/tasks').then(r => r.json()).then(function(data) {
+            taskCache = data;
+            tasksByDate = {};
+            data.forEach(function(t) {
+                if (!tasksByDate[t.due_date]) tasksByDate[t.due_date] = [];
+                tasksByDate[t.due_date].push(t);
+            });
+            return data;
+        });
+    }
+
+    function clearTaskBadges() {
+        document.querySelectorAll('.task-count-badge').forEach(function(el) { el.remove(); });
+    }
+
+    function hideDayTaskList() {
+        document.getElementById('dayTaskList').classList.add('d-none');
+    }
+
+    function renderTaskDisplay() {
+        clearTaskBadges();
+        var viewType = calendar.view.type;
+        if (viewType === 'timeGridDay') {
+            renderDayTaskList();
+        } else {
+            hideDayTaskList();
+            injectTaskBadges(viewType);
+        }
+    }
+
+    function injectTaskBadges(viewType) {
+        var selector = viewType === 'dayGridMonth' ? '.fc-daygrid-day' : '.fc-col-header-cell';
+        document.querySelectorAll(selector).forEach(function(cell) {
+            var dateStr = cell.getAttribute('data-date');
+            if (!dateStr || !tasksByDate[dateStr]) return;
+            var count = tasksByDate[dateStr].length;
+            if (count === 0) return;
+            var badge = document.createElement('span');
+            badge.className = 'task-count-badge';
+            badge.innerHTML = '<i class="bi bi-check2-square" style="font-size:0.65rem"></i> ' + count;
+            if (viewType === 'dayGridMonth') {
+                var top = cell.querySelector('.fc-daygrid-day-top');
+                if (top) top.appendChild(badge);
+            } else {
+                var inner = cell.querySelector('.fc-col-header-cell-cushion');
+                if (inner) inner.appendChild(badge);
+            }
+        });
+    }
+
+    function renderDayTaskList() {
+        var d = toDateStr(calendar.getDate());
+        var tasks = tasksByDate[d] || [];
+        var listEl = document.getElementById('dayTaskList');
+        var itemsEl = document.getElementById('dayTaskItems');
+        var dateLabel = document.getElementById('dayTaskDate');
+        listEl.classList.remove('d-none');
+        dateLabel.textContent = calendar.getDate().toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric'});
+        if (tasks.length === 0) {
+            itemsEl.innerHTML = '<p class="text-muted mb-0 py-2">No tasks due this day.</p>';
+        } else {
+            itemsEl.innerHTML = tasks.map(function(t) {
+                var priorityColors = { High: '#ef4444', Medium: '#f59e0b', Low: '#22c55e' };
+                var dot = '<span style="width:8px;height:8px;border-radius:50%;background:' + (priorityColors[t.priority] || '#64748b') + ';display:inline-block;flex-shrink:0"></span>';
+                return '<div class="task-item">' +
+                    dot +
+                    '<span class="task-title">' + t.title + '</span>' +
+                    (t.assigned_to ? '<small class="text-muted">' + t.assigned_to + '</small>' : '') +
+                    (t.household ? '<small class="text-muted ms-1"><i class="bi bi-house-door"></i> ' + t.household + '</small>' : '') +
+                    '</div>';
+            }).join('');
+        }
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
     function toDateStr(d) { return d.toISOString().slice(0, 10); }
-    // Helper: format Date to HH:MM
     function toTimeStr(d) { return d.toTimeString().slice(0, 5); }
 
+    function openAddModal(start, end, allDay) {
+        var dateInput = document.querySelector('#addMeetingModal [name="meeting_date"]');
+        var timeInput = document.querySelector('#addMeetingModal [name="meeting_time"]');
+        var durationInput = document.querySelector('#addMeetingModal [name="duration_minutes"]');
+        var label = document.getElementById('modalTimeLabel');
+        dateInput.value = toDateStr(start);
+        if (allDay) {
+            timeInput.value = '09:00';
+            durationInput.value = 60;
+            label.textContent = start.toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric', year:'numeric'});
+        } else {
+            timeInput.value = toTimeStr(start);
+            var diffMin = Math.round((end - start) / 60000);
+            durationInput.value = diffMin > 0 ? diffMin : 60;
+            label.textContent = start.toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'}) + '  ' +
+                start.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'}) + ' – ' +
+                end.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'});
+        }
+        document.getElementById('addHouseholdSelect').value = '';
+        document.getElementById('addHouseholdSelect').dispatchEvent(new Event('change'));
+        new bootstrap.Modal(document.getElementById('addMeetingModal')).show();
+    }
+
+    // ── Calendar ──────────────────────────────────────────────────────────────
     var calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
         headerToolbar: {
@@ -160,92 +375,65 @@ document.addEventListener('DOMContentLoaded', function() {
             center: 'title',
             right: 'dayGridMonth,timeGridWeek,timeGridDay'
         },
-        buttonText: {
-            today: 'Today',
-            month: 'Month',
-            week: 'Week',
-            day: 'Day'
-        },
+        buttonText: { today: 'Today', month: 'Month', week: 'Week', day: 'Day' },
         height: 'auto',
         navLinks: true,
         editable: false,
         selectable: true,
         selectMirror: true,
-        unselectAuto: false,
+        unselectAuto: true,
         selectOverlap: true,
         select: function(info) {
-            selectedStart = info.start;
-            selectedEnd = info.end;
-
-            // Pre-fill the add meeting form
-            var dateInput = document.querySelector('#addMeetingModal [name="meeting_date"]');
-            var timeInput = document.querySelector('#addMeetingModal [name="meeting_time"]');
-            var durationInput = document.querySelector('#addMeetingModal [name="duration_minutes"]');
-
-            dateInput.value = toDateStr(selectedStart);
-
-            // For time-grid views (week/day), we get exact times
             if (info.allDay) {
-                // Month view click — default to 9:00 AM, 60 min
-                timeInput.value = '09:00';
-                durationInput.value = 60;
+                calendar.changeView('timeGridDay', info.start);
             } else {
-                timeInput.value = toTimeStr(selectedStart);
-                var diffMin = Math.round((selectedEnd - selectedStart) / 60000);
-                durationInput.value = diffMin > 0 ? diffMin : 60;
+                openAddModal(info.start, info.end, false);
             }
-
-            // Flash the New Meeting button to draw attention
-            var btn = document.getElementById('newMeetingBtn');
-            btn.classList.remove('btn-primary');
-            btn.classList.add('btn-success');
-            btn.innerHTML = '<i class="bi bi-plus-lg"></i> Add Event — ' +
-                selectedStart.toLocaleDateString('en-US', {month:'short', day:'numeric'}) +
-                (info.allDay ? '' : ' ' + selectedStart.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'})) +
-                (info.allDay ? '' : '–' + selectedEnd.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'}));
         },
-        unselect: function() {
-            selectedStart = null;
-            selectedEnd = null;
-            var btn = document.getElementById('newMeetingBtn');
-            btn.classList.remove('btn-success');
-            btn.classList.add('btn-primary');
-            btn.innerHTML = '<i class="bi bi-plus-lg"></i> New Meeting';
+        dateClick: function(info) {
+            calendar.changeView('timeGridDay', info.date);
+        },
+        datesSet: function(info) {
+            var isDay = info.view.type === 'timeGridDay';
+            // Show/hide Create Task button
+            document.getElementById('createTaskBtn').classList.toggle('d-none', !isDay);
+            // Refresh task display after view/date change
+            if (showTasks) {
+                loadTasks().then(renderTaskDisplay);
+            } else {
+                clearTaskBadges();
+                hideDayTaskList();
+            }
         },
         events: function(info, successCallback, failureCallback) {
+            if (!showMeetings) { successCallback([]); return; }
             fetch('/api/meetings')
                 .then(r => r.json())
-                .then(data => {
-                    var events = data.map(function(m) {
+                .then(function(data) {
+                    successCallback(data.map(function(m) {
                         var start = m.start;
                         var end = new Date(new Date(start).getTime() + m.duration * 60000).toISOString();
                         return {
-                            id: m.id,
-                            title: m.title,
-                            start: start,
-                            end: end,
+                            id: m.id, title: m.title, start: start, end: end,
                             extendedProps: {
-                                household: m.household,
-                                duration: m.duration,
-                                location: m.location || '',
-                                notes: m.notes || '',
+                                type: 'meeting',
+                                household: m.household, duration: m.duration,
+                                location: m.location || '', notes: m.notes || '',
                                 attendees: m.attendees || ''
                             }
                         };
-                    });
-                    successCallback(events);
+                    }));
                 })
                 .catch(failureCallback);
         },
         eventClick: function(info) {
             var e = info.event;
             var p = e.extendedProps;
+            if (p.type !== 'meeting') return;
             document.getElementById('detailTitle').textContent = e.title;
             var startDate = e.start;
-            var dateStr = startDate.toLocaleDateString('en-US', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
-            var timeStr = startDate.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'});
-            var html = '<div><strong>Date:</strong> ' + dateStr + '</div>';
-            html += '<div><strong>Time:</strong> ' + timeStr + ' (' + p.duration + ' min)</div>';
+            var html = '<div><strong>Date:</strong> ' + startDate.toLocaleDateString('en-US', {weekday:'long', year:'numeric', month:'long', day:'numeric'}) + '</div>';
+            html += '<div><strong>Time:</strong> ' + startDate.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'}) + ' (' + p.duration + ' min)</div>';
             if (p.location) html += '<div><strong>Location:</strong> ' + p.location + '</div>';
             if (p.household) html += '<div><strong>Household:</strong> ' + p.household + '</div>';
             if (p.attendees) html += '<div><strong>Attendees:</strong> ' + p.attendees + '</div>';
@@ -253,40 +441,41 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('detailBody').innerHTML = html;
             new bootstrap.Modal(document.getElementById('meetingDetailModal')).show();
         },
-        // Show hint when switching to time-grid views
-        viewDidMount: function(info) {
-            var hint = document.getElementById('selectHint');
-            if (info.view.type === 'timeGridWeek' || info.view.type === 'timeGridDay') {
-                hint.classList.add('visible');
-            } else {
-                hint.classList.remove('visible');
-            }
-        },
         eventColor: '#1e293b',
         nowIndicator: true,
     });
     calendar.render();
 
-    // ── Household → Attendee filtering for Add Meeting modal ──
+    // ── Household → Attendee filter (meeting modal) ───────────────────────────
     var householdSelect = document.getElementById('addHouseholdSelect');
-    var attendeeSelect = document.getElementById('addAttendeeSelect');
+    var attendeeSelect  = document.getElementById('addAttendeeSelect');
     var allOptions = Array.from(attendeeSelect.options).map(function(opt) {
         return { value: opt.value, text: opt.text, householdId: opt.dataset.household, el: opt.cloneNode(true) };
     });
-
     householdSelect.addEventListener('change', function() {
         var hid = this.value;
         attendeeSelect.innerHTML = '';
         allOptions.forEach(function(opt) {
-            if (!hid || opt.householdId === hid) {
-                attendeeSelect.appendChild(opt.el.cloneNode(true));
-            }
+            if (!hid || opt.householdId === hid) attendeeSelect.appendChild(opt.el.cloneNode(true));
         });
     });
 
-    // Reset form fields when modal is closed without submitting
     document.getElementById('addMeetingModal').addEventListener('hidden.bs.modal', function() {
+        document.getElementById('modalTimeLabel').textContent = '';
         calendar.unselect();
+    });
+
+    // ── Create Task button ────────────────────────────────────────────────────
+    document.getElementById('createTaskBtn').addEventListener('click', function() {
+        var d = calendar.getDate();
+        document.getElementById('taskDueDateInput').value = toDateStr(d);
+        document.getElementById('taskModalDateLabel').textContent =
+            d.toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric', year:'numeric'});
+        document.getElementById('taskHouseholdSelect').value = '';
+        // Default assigned_to from welcome dashboard selection
+        var activeUser = localStorage.getItem('ria_active_user_name') || '';
+        document.getElementById('taskAssignedToSelect').value = activeUser;
+        new bootstrap.Modal(document.getElementById('addTaskModal')).show();
     });
 });
 </script>

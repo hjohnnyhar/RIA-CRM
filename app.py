@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, flash
-from models import db, Household, Person, Account, Task, Meeting, MeetingAttendee
-from models import ACCOUNT_TYPES, TASK_STATUSES, TASK_PRIORITIES
+from models import db, Household, Person, Account, Task, Meeting, MeetingAttendee, User
+from models import ACCOUNT_TYPES, TASK_STATUSES, TASK_PRIORITIES, USER_ROLES
 from datetime import datetime, date, time
 import os
 
@@ -177,6 +177,51 @@ def account_delete(id):
     return redirect(url_for("household_detail", id=hid))
 
 
+# ── Users (internal staff) ────────────────────────────────────────────────────
+
+@app.route("/users")
+def user_list():
+    users = User.query.order_by(User.last_name, User.first_name).all()
+    return render_template("users.html", users=users, roles=USER_ROLES)
+
+
+@app.route("/users/new", methods=["POST"])
+def user_new():
+    u = User(
+        first_name=request.form["first_name"],
+        last_name=request.form["last_name"],
+        email=request.form.get("email", ""),
+        role=request.form.get("role", "Advisor"),
+        is_active=True,
+    )
+    db.session.add(u)
+    db.session.commit()
+    flash(f"{u.full_name} added.", "success")
+    return redirect(url_for("user_list"))
+
+
+@app.route("/users/<int:id>/edit", methods=["POST"])
+def user_edit(id):
+    u = User.query.get_or_404(id)
+    u.first_name = request.form["first_name"]
+    u.last_name = request.form["last_name"]
+    u.email = request.form.get("email", "")
+    u.role = request.form.get("role", "Advisor")
+    u.is_active = request.form.get("is_active") == "on"
+    db.session.commit()
+    flash(f"{u.full_name} updated.", "success")
+    return redirect(url_for("user_list"))
+
+
+@app.route("/users/<int:id>/delete", methods=["POST"])
+def user_delete(id):
+    u = User.query.get_or_404(id)
+    db.session.delete(u)
+    db.session.commit()
+    flash("User removed.", "success")
+    return redirect(url_for("user_list"))
+
+
 # ── Tasks ──────────────────────────────────────────────────────────────────────
 
 @app.route("/tasks")
@@ -192,6 +237,7 @@ def task_list():
         statuses=TASK_STATUSES,
         priorities=TASK_PRIORITIES,
         households=Household.query.order_by(Household.name).all(),
+        users=User.query.filter_by(is_active=True).order_by(User.last_name).all(),
         current_status=status_filter,
     )
 
@@ -214,6 +260,8 @@ def task_new():
     referrer = request.form.get("referrer", "")
     if referrer == "household" and t.household_id:
         return redirect(url_for("household_detail", id=t.household_id))
+    if referrer == "calendar":
+        return redirect(url_for("calendar_view"))
     return redirect(url_for("task_list"))
 
 
@@ -250,6 +298,26 @@ def task_delete(id):
     return redirect(url_for("task_list"))
 
 
+# ── Welcome Dashboard ────────────────────────────────────────────────────────
+
+@app.route("/welcome")
+def welcome():
+    today = date.today()
+    users = User.query.filter_by(is_active=True).order_by(User.last_name).all()
+    meetings_today = Meeting.query.filter_by(meeting_date=today).order_by(Meeting.meeting_time).all()
+    all_tasks = Task.query.filter(Task.status != "Done").order_by(Task.due_date.asc().nullslast()).all()
+    return render_template(
+        "welcome.html",
+        users=users,
+        meetings_today=meetings_today,
+        all_tasks_json=[t.to_dict() for t in all_tasks],
+        today=today,
+        task_statuses=TASK_STATUSES,
+        task_priorities=TASK_PRIORITIES,
+        households=Household.query.order_by(Household.name).all(),
+    )
+
+
 # ── Calendar / Meetings ───────────────────────────────────────────────────────
 
 @app.route("/calendar")
@@ -257,7 +325,15 @@ def calendar_view():
     meetings = Meeting.query.order_by(Meeting.meeting_date, Meeting.meeting_time).all()
     people = Person.query.order_by(Person.last_name).all()
     households = Household.query.order_by(Household.name).all()
-    return render_template("calendar.html", meetings=meetings, people=people, households=households)
+    return render_template(
+        "calendar.html",
+        meetings=meetings,
+        people=people,
+        households=households,
+        task_statuses=TASK_STATUSES,
+        task_priorities=TASK_PRIORITIES,
+        users=User.query.filter_by(is_active=True).order_by(User.last_name).all(),
+    )
 
 
 @app.route("/meetings/new", methods=["POST"])
@@ -310,6 +386,20 @@ def meeting_delete(id):
 
 
 # ── API (JSON) for calendar widget ────────────────────────────────────────────
+
+@app.route("/api/tasks")
+def api_tasks():
+    tasks = Task.query.filter(Task.due_date.isnot(None), Task.status != "Done").all()
+    return jsonify([{
+        "id": t.id,
+        "title": t.title,
+        "due_date": t.due_date.isoformat(),
+        "priority": t.priority,
+        "status": t.status,
+        "assigned_to": t.assigned_to or "",
+        "household": t.household.name if t.household else "",
+    } for t in tasks])
+
 
 @app.route("/api/meetings")
 def api_meetings():

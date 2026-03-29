@@ -55,7 +55,12 @@
                     <div class="col"><select name="status" class="form-select">{% for s in statuses %}<option {% if t.status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
                 </div>
                 <div class="mb-2"><input type="date" name="due_date" class="form-control" value="{{ t.due_date.isoformat() if t.due_date else '' }}"></div>
-                <div class="mb-2"><input type="text" name="assigned_to" class="form-control" value="{{ t.assigned_to }}" placeholder="Assigned To"></div>
+                <div class="mb-2">
+                    <select name="assigned_to" class="form-select">
+                        <option value="">Unassigned</option>
+                        {% for u in users %}<option value="{{ u.full_name }}" {% if t.assigned_to == u.full_name %}selected{% endif %}>{{ u.full_name }} ({{ u.role }})</option>{% endfor %}
+                    </select>
+                </div>
                 <div class="mb-2">
                     <select name="household_id" class="form-select">
                         <option value="">No Household</option>
@@ -85,7 +90,12 @@
             <div class="col"><select name="priority" class="form-select">{% for pr in priorities %}<option>{{ pr }}</option>{% endfor %}</select></div>
             <div class="col"><input type="date" name="due_date" class="form-control"></div>
         </div>
-        <div class="mb-2"><input type="text" name="assigned_to" class="form-control" placeholder="Assigned To"></div>
+        <div class="mb-2">
+            <select name="assigned_to" class="form-select">
+                <option value="">Unassigned</option>
+                {% for u in users %}<option value="{{ u.full_name }}">{{ u.full_name }} ({{ u.role }})</option>{% endfor %}
+            </select>
+        </div>
         <div class="mb-2">
             <select name="household_id" class="form-select">
                 <option value="">No Household</option>
@@ -96,4 +106,15 @@
     <div class="modal-footer"><button type="submit" class="btn btn-primary btn-sm">Create</button></div>
     </form>
 </div></div></div>
+
+<script>
+// Pre-select active user from welcome dashboard selection
+(function() {
+    var activeUser = localStorage.getItem('ria_active_user_name') || '';
+    if (activeUser) {
+        var sel = document.querySelector('#addTaskModal [name="assigned_to"]');
+        if (sel) sel.value = activeUser;
+    }
+})();
+</script>
 {% endblock %}

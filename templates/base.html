@@ -40,6 +40,9 @@
 <body>
     <nav class="sidebar">
         <div class="brand"><i class="bi bi-graph-up-arrow"></i> RIA CRM</div>
+        <a class="nav-link {% if request.endpoint == 'welcome' %}active{% endif %}" href="{{ url_for('welcome') }}">
+            <i class="bi bi-house-heart"></i> Welcome
+        </a>
         <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
             <i class="bi bi-speedometer2"></i> Dashboard
         </a>
@@ -51,6 +54,9 @@
         </a>
         <a class="nav-link {% if request.endpoint == 'calendar_view' %}active{% endif %}" href="{{ url_for('calendar_view') }}">
             <i class="bi bi-calendar3"></i> Calendar
+        </a>
+        <a class="nav-link {% if request.endpoint == 'user_list' %}active{% endif %}" href="{{ url_for('user_list') }}">
+            <i class="bi bi-people"></i> Team
         </a>
     </nav>
 
