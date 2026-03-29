@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}{{ household.name }} - RIA CRM{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="mb-0">{{ household.name }}</h4>
+        <small class="text-muted">AUM: ${{ "{:,.0f}".format(household.total_aum) }}</small>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('household_edit', id=household.id) }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-pencil"></i> Edit</a>
+        <form method="POST" action="{{ url_for('household_delete', id=household.id) }}" onsubmit="return confirm('Delete this household and all related data?')">
+            <button class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i> Delete</button>
+        </form>
+    </div>
+</div>
+
+{% if household.notes %}
+<div class="card p-3 mb-4"><small class="text-muted">{{ household.notes }}</small></div>
+{% endif %}
+
+<!-- PEOPLE -->
+<div class="card p-3 mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="mb-0"><i class="bi bi-people"></i> People ({{ household.people|length }})</h6>
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addPersonModal"><i class="bi bi-plus-lg"></i> Add Person</button>
+    </div>
+    {% if household.people %}
+    <table class="table table-sm mb-0">
+        <thead><tr><th>Name</th><th>Role</th><th>Email</th><th>Phone</th><th>Primary</th><th></th></tr></thead>
+        <tbody>
+        {% for p in household.people %}
+        <tr>
+            <td>{{ p.full_name }}</td>
+            <td>{{ p.role }}</td>
+            <td>{{ p.email or '—' }}</td>
+            <td>{{ p.phone or '—' }}</td>
+            <td>{% if p.is_primary %}<i class="bi bi-star-fill text-warning"></i>{% endif %}</td>
+            <td>
+                <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#editPerson{{ p.id }}"><i class="bi bi-pencil"></i></button>
+                <form method="POST" action="{{ url_for('person_delete', id=p.id) }}" class="d-inline" onsubmit="return confirm('Remove this person?')">
+                    <button class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button>
+                </form>
+            </td>
+        </tr>
+        <!-- Edit Person Modal -->
+        <div class="modal fade" id="editPerson{{ p.id }}" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+            <form method="POST" action="{{ url_for('person_edit', id=p.id) }}">
+            <div class="modal-header"><h6 class="modal-title">Edit {{ p.full_name }}</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="row g-2 mb-2"><div class="col"><input type="text" name="first_name" class="form-control" value="{{ p.first_name }}" placeholder="First" required></div><div class="col"><input type="text" name="last_name" class="form-control" value="{{ p.last_name }}" placeholder="Last" required></div></div>
+                <div class="mb-2"><input type="email" name="email" class="form-control" value="{{ p.email }}" placeholder="Email"></div>
+                <div class="mb-2"><input type="text" name="phone" class="form-control" value="{{ p.phone }}" placeholder="Phone"></div>
+                <div class="mb-2"><select name="role" class="form-select">{% for r in ['Client','Spouse','Beneficiary','Trustee','Power of Attorney','Other'] %}<option {% if p.role == r %}selected{% endif %}>{{ r }}</option>{% endfor %}</select></div>
+                <div class="form-check"><input type="checkbox" name="is_primary" class="form-check-input" {% if p.is_primary %}checked{% endif %}><label class="form-check-label">Primary Contact</label></div>
+            </div>
+            <div class="modal-footer"><button type="submit" class="btn btn-primary btn-sm">Save</button></div>
+            </form>
+        </div></div></div>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted mb-0">No people added yet.</p>
+    {% endif %}
+</div>
+
+<!-- ACCOUNTS -->
+<div class="card p-3 mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="mb-0"><i class="bi bi-wallet2"></i> Accounts ({{ household.accounts|length }})</h6>
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addAccountModal"><i class="bi bi-plus-lg"></i> Add Account</button>
+    </div>
+    {% if household.accounts %}
+    <table class="table table-sm mb-0">
+        <thead><tr><th>Name</th><th>Type</th><th>Custodian</th><th>Account #</th><th>Balance</th><th></th></tr></thead>
+        <tbody>
+        {% for a in household.accounts %}
+        <tr>
+            <td>{{ a.name }}</td>
+            <td>{{ a.account_type }}</td>
+            <td>{{ a.custodian or '—' }}</td>
+            <td>{{ a.account_number or '—' }}</td>
+            <td>${{ "{:,.0f}".format(a.balance) }}</td>
+            <td>
+                <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#editAccount{{ a.id }}"><i class="bi bi-pencil"></i></button>
+                <form method="POST" action="{{ url_for('account_delete', id=a.id) }}" class="d-inline" onsubmit="return confirm('Remove this account?')">
+                    <button class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button>
+                </form>
+            </td>
+        </tr>
+        <!-- Edit Account Modal -->
+        <div class="modal fade" id="editAccount{{ a.id }}" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+            <form method="POST" action="{{ url_for('account_edit', id=a.id) }}">
+            <div class="modal-header"><h6 class="modal-title">Edit {{ a.name }}</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="mb-2"><input type="text" name="name" class="form-control" value="{{ a.name }}" placeholder="Account Name" required></div>
+                <div class="mb-2"><select name="account_type" class="form-select">{% for at in account_types %}<option {% if a.account_type == at %}selected{% endif %}>{{ at }}</option>{% endfor %}</select></div>
+                <div class="mb-2"><input type="text" name="custodian" class="form-control" value="{{ a.custodian }}" placeholder="Custodian"></div>
+                <div class="mb-2"><input type="text" name="account_number" class="form-control" value="{{ a.account_number }}" placeholder="Account Number"></div>
+                <div class="mb-2"><input type="number" name="balance" class="form-control" value="{{ a.balance }}" step="0.01" placeholder="Balance"></div>
+            </div>
+            <div class="modal-footer"><button type="submit" class="btn btn-primary btn-sm">Save</button></div>
+            </form>
+        </div></div></div>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted mb-0">No accounts added yet.</p>
+    {% endif %}
+</div>
+
+<!-- TASKS for this household -->
+<div class="card p-3 mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="mb-0"><i class="bi bi-check2-square"></i> Tasks ({{ household.tasks|length }})</h6>
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addTaskModal"><i class="bi bi-plus-lg"></i> Add Task</button>
+    </div>
+    {% if household.tasks %}
+    <table class="table table-sm mb-0">
+        <thead><tr><th>Task</th><th>Priority</th><th>Status</th><th>Due</th><th>Assigned</th><th></th></tr></thead>
+        <tbody>
+        {% for t in household.tasks %}
+        <tr>
+            <td>{{ t.title }}</td>
+            <td><span class="badge badge-priority-{{ t.priority }}">{{ t.priority }}</span></td>
+            <td>
+                <form method="POST" action="{{ url_for('task_status', id=t.id) }}" class="d-inline">
+                    <select name="status" class="form-select form-select-sm d-inline" style="width:auto" onchange="this.form.submit()">
+                        {% for s in task_statuses %}<option {% if t.status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+                    </select>
+                </form>
+            </td>
+            <td>{{ t.due_date.strftime('%b %d') if t.due_date else '—' }}</td>
+            <td>{{ t.assigned_to or '—' }}</td>
+            <td>
+                <form method="POST" action="{{ url_for('task_delete', id=t.id) }}" class="d-inline" onsubmit="return confirm('Delete?')">
+                    <button class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted mb-0">No tasks for this household.</p>
+    {% endif %}
+</div>
+
+<!-- Add Person Modal -->
+<div class="modal fade" id="addPersonModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+    <form method="POST" action="{{ url_for('person_add', hid=household.id) }}">
+    <div class="modal-header"><h6 class="modal-title">Add Person</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+        <div class="row g-2 mb-2"><div class="col"><input type="text" name="first_name" class="form-control" placeholder="First Name" required></div><div class="col"><input type="text" name="last_name" class="form-control" placeholder="Last Name" required></div></div>
+        <div class="mb-2"><input type="email" name="email" class="form-control" placeholder="Email"></div>
+        <div class="mb-2"><input type="text" name="phone" class="form-control" placeholder="Phone"></div>
+        <div class="mb-2"><select name="role" class="form-select"><option>Client</option><option>Spouse</option><option>Beneficiary</option><option>Trustee</option><option>Power of Attorney</option><option>Other</option></select></div>
+        <div class="form-check"><input type="checkbox" name="is_primary" class="form-check-input"><label class="form-check-label">Primary Contact</label></div>
+    </div>
+    <div class="modal-footer"><button type="submit" class="btn btn-primary btn-sm">Add</button></div>
+    </form>
+</div></div></div>
+
+<!-- Add Account Modal -->
+<div class="modal fade" id="addAccountModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+    <form method="POST" action="{{ url_for('account_add', hid=household.id) }}">
+    <div class="modal-header"><h6 class="modal-title">Add Account</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+        <div class="mb-2"><input type="text" name="name" class="form-control" placeholder="Account Name" required></div>
+        <div class="mb-2"><select name="account_type" class="form-select">{% for at in account_types %}<option>{{ at }}</option>{% endfor %}</select></div>
+        <div class="mb-2"><input type="text" name="custodian" class="form-control" placeholder="Custodian (e.g., Schwab, Fidelity)"></div>
+        <div class="mb-2"><input type="text" name="account_number" class="form-control" placeholder="Account Number"></div>
+        <div class="mb-2"><input type="number" name="balance" class="form-control" placeholder="Balance" step="0.01"></div>
+    </div>
+    <div class="modal-footer"><button type="submit" class="btn btn-primary btn-sm">Add</button></div>
+    </form>
+</div></div></div>
+
+<!-- Add Task Modal -->
+<div class="modal fade" id="addTaskModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+    <form method="POST" action="{{ url_for('task_new') }}">
+    <input type="hidden" name="household_id" value="{{ household.id }}">
+    <input type="hidden" name="referrer" value="household">
+    <div class="modal-header"><h6 class="modal-title">Add Task</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+        <div class="mb-2"><input type="text" name="title" class="form-control" placeholder="Task Title" required></div>
+        <div class="mb-2"><textarea name="description" class="form-control" rows="2" placeholder="Description"></textarea></div>
+        <div class="row g-2 mb-2">
+            <div class="col"><select name="priority" class="form-select">{% for pr in task_priorities %}<option>{{ pr }}</option>{% endfor %}</select></div>
+            <div class="col"><input type="date" name="due_date" class="form-control"></div>
+        </div>
+        <div class="mb-2"><input type="text" name="assigned_to" class="form-control" placeholder="Assigned To (team member)"></div>
+    </div>
+    <div class="modal-footer"><button type="submit" class="btn btn-primary btn-sm">Create</button></div>
+    </form>
+</div></div></div>
+{% endblock %}
