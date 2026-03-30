@@ -2,12 +2,15 @@ from flask import Flask, render_template, request, redirect, url_for, jsonify, f
 from models import db, Household, Person, Account, Task, Meeting, MeetingAttendee, User
 from models import ACCOUNT_TYPES, TASK_STATUSES, TASK_PRIORITIES, USER_ROLES
 from datetime import datetime, date, time
+from dotenv import load_dotenv
 import os
 
+load_dotenv()
+
 app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///ria_crm.db"
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///ria_crm.db")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.config["SECRET_KEY"] = os.urandom(24)
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", os.urandom(24))
 
 db.init_app(app)
 
