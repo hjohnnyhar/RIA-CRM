@@ -30,8 +30,11 @@ with app.app_context():
 def health():
     return jsonify({
         "db_config": app.config["SQLALCHEMY_DATABASE_URI"][:30] + "...",
-        "DATABASE_URL_env": str(os.getenv("DATABASE_URL", "NOT SET"))[:40],
-        "env_keys_with_db": [k for k in os.environ if "DB" in k or "DATABASE" in k or "POSTGRES" in k]
+        "DATABASE_URL": str(os.getenv("DATABASE_URL", "NOT SET"))[:40],
+        "VERCEL": os.getenv("VERCEL", "NOT SET"),
+        "VERCEL_ENV": os.getenv("VERCEL_ENV", "NOT SET"),
+        "total_env_vars": len(os.environ),
+        "all_keys": sorted(list(os.environ.keys()))
     })
 
 
