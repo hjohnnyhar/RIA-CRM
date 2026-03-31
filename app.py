@@ -28,7 +28,11 @@ with app.app_context():
 
 @app.route("/health")
 def health():
-    return jsonify({"db": app.config["SQLALCHEMY_DATABASE_URI"][:30] + "..."})
+    return jsonify({
+        "db_config": app.config["SQLALCHEMY_DATABASE_URI"][:30] + "...",
+        "DATABASE_URL_env": str(os.getenv("DATABASE_URL", "NOT SET"))[:40],
+        "env_keys_with_db": [k for k in os.environ if "DB" in k or "DATABASE" in k or "POSTGRES" in k]
+    })
 
 
 @app.route("/")
