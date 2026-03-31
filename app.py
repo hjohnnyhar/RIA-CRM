@@ -5,7 +5,7 @@ from datetime import datetime, date, time
 from dotenv import load_dotenv
 import os
 
-load_dotenv()
+load_dotenv()  # loads .env locally; no-op on Vercel
 
 app = Flask(__name__)
 
