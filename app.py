@@ -8,9 +8,15 @@ import os
 load_dotenv()
 
 app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///ria_crm.db")
+
+_db_url = os.getenv("DATABASE_URL", "sqlite:///ria_crm.db")
+# Heroku/some platforms set postgres:// which SQLAlchemy 2.x requires as postgresql://
+if _db_url.startswith("postgres://"):
+    _db_url = _db_url.replace("postgres://", "postgresql://", 1)
+
+app.config["SQLALCHEMY_DATABASE_URI"] = _db_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", os.urandom(24))
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-change-in-prod")
 
 db.init_app(app)
 
@@ -19,6 +25,11 @@ with app.app_context():
 
 
 # ── Dashboard ──────────────────────────────────────────────────────────────────
+
+@app.route("/health")
+def health():
+    return jsonify({"db": app.config["SQLALCHEMY_DATABASE_URI"][:30] + "..."})
+
 
 @app.route("/")
 def dashboard():
